@@ -44,21 +44,34 @@ int32_t utf8_iterator::operator*()
   } else if (likely(c->b[0] < 224)) {
     if (unlikely(c->b[0] < 192))
       goto err;
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
     if (unlikely((c->i & 0x0000c000U) != 0x00008000U))
+#else
+    if (unlikely((c->b[1] & 0xc0) != 0x80))
+#endif
       goto err;
     buf.i = ((c->b[0] & 0x1f) <<  6) | (c->b[1] & 0x3f);
     curr_seq_len_ = 2;
   } else if (likely(c->b[0] < 240)) {
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
     if (unlikely((c->i & 0x00c0c000U) != 0x00808000U))
+#else
+    if (unlikely(((c->b[1] & 0xc0) != 0x80) || ((c->b[2] & 0xc0) != 0x80)))
+#endif
       goto err;
     buf.i = ((c->b[0] & 0x0f) << 12) | ((c->b[1] & 0x3f) <<  6) |
-            (c->b[2] & 0x3f);
+             (c->b[2] & 0x3f);
     curr_seq_len_ = 3;
   } else if (likely(c->b[0] < 248)) {
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
     if (unlikely((c->i & 0xc0c0c000U) != 0x80808000U))
+#else
+    if (unlikely(((c->b[1] & 0xc0) != 0x80) || ((c->b[2] & 0xc0) != 0x80) ||
+                 ((c->b[3] & 0xc0) != 0x80)))
+#endif
       goto err;
     buf.i = ((c->b[0] & 0x07) << 18) | ((c->b[1] & 0x3f) << 12) |
-            ((c->b[2] & 0x3f) <<  6) | (c->b[3] & 0x3f);
+            ((c->b[2] & 0x3f) <<  6) |  (c->b[3] & 0x3f);
     curr_seq_len_ = 4;
   } else {
     goto err;

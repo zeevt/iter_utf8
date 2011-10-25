@@ -19,7 +19,7 @@ private:
 };
 
 /* TODO:
- * In case of two payload bytes, ifdef unaligned check of: *p & 0xc0c0 == 0x8080
+ * copy code to decode first byte, use different copies depending on previous sequence length.
  * Add check code point is in minimal length encoding.
  */
 class utf8_iterator: public std::iterator<std::forward_iterator_tag, int32_t>
