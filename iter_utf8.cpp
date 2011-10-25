@@ -26,64 +26,44 @@ utf8_iterator& utf8_iterator::operator++()
   return *this;
 }
 
-#define ADD_PAYLOAD_BYTE(result, p)		\
-  do { 						\
-    result <<= 6;				\
-    uint8_t payload = *++(p);		        \
-    if (unlikely((payload & 0xc0) != 0x80))	\
-      goto err;					\
-    result |= payload & ((1 << 6) - 1);		\
-  } while (0)
-
 int32_t utf8_iterator::operator*()
 {
-  union { uint8_t b[4]; uint32_t i; } buf;
-  int32_t result;
-  const uint8_t *c = p_;
+  union b4 { uint8_t b[4]; uint32_t i; } buf;
+  const union b4 *c = (const union b4 *)p_;
   const ptrdiff_t avail_bytes = end_ - p_;
   if (unlikely(avail_bytes < 4)) {
     if (unlikely(avail_bytes <= 0))
       goto err;
     buf.i = 0;
-    memcpy(&buf.b[0], p_, avail_bytes);
-    c = &buf.b[0];
+    memcpy(&buf, p_, avail_bytes);
+    c = &buf;
   }
   curr_seq_len_ = 1;
-  result = *c;
-  if (result < 128)
-    return result;
-  if (unlikely(result < 192))
-    goto err;
-  if (result < 224) {
-    // two bytes
-    result &= ((1 << 5) - 1);
-    ADD_PAYLOAD_BYTE(result, c);
-    curr_seq_len_ = 2;
-    return result;
-  }
-  if (result < 240) {
-    // three bytes
-    result &= ((1 << 4) - 1);
-#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
-    if (unlikely((*(const uint16_t *)(c + 1) & 0xC0C0) != 0x8080))
+  if (likely(c->b[0] < 128)) {
+    return c->b[0];
+  } else if (likely(c->b[0] < 224)) {
+    if (unlikely(c->b[0] < 192))
       goto err;
-    result = (result << 12) | ((c[1] & 0x3F) << 6) | (c[2] & 0x3F);
-#else
-    ADD_PAYLOAD_BYTE(result, c);
-    ADD_PAYLOAD_BYTE(result, c);
-#endif
+    if (unlikely((c->i & 0x0000c000U) != 0x00008000U))
+      goto err;
+    buf.i = ((c->b[0] & 0x1f) <<  6) | (c->b[1] & 0x3f);
+    curr_seq_len_ = 2;
+  } else if (likely(c->b[0] < 240)) {
+    if (unlikely((c->i & 0x00c0c000U) != 0x00808000U))
+      goto err;
+    buf.i = ((c->b[0] & 0x0f) << 12) | ((c->b[1] & 0x3f) <<  6) |
+            (c->b[2] & 0x3f);
     curr_seq_len_ = 3;
-    return result;
-  }
-  if (result < 248) {
-    // four bytes
-    result &= ((1 << 3) - 1);
-    ADD_PAYLOAD_BYTE(result, c);
-    ADD_PAYLOAD_BYTE(result, c);
-    ADD_PAYLOAD_BYTE(result, c);
+  } else if (likely(c->b[0] < 248)) {
+    if (unlikely((c->i & 0xc0c0c000U) != 0x80808000U))
+      goto err;
+    buf.i = ((c->b[0] & 0x07) << 18) | ((c->b[1] & 0x3f) << 12) |
+            ((c->b[2] & 0x3f) <<  6) | (c->b[3] & 0x3f);
     curr_seq_len_ = 4;
-    return result;
+  } else {
+    goto err;
   }
+  return buf.i;
 err:
   return INT32_MIN;
 }
