@@ -16,7 +16,7 @@ inline bool mask_cmp_4b(
 #if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
   const uint32_t *c = reinterpret_cast<const uint32_t *>(p);
   return (*c & (m0 | (m1 << 8) | (m2 << 16) | (m3 << 24))) ==
-         (r0 | (r1 << 8) | (r2 << 16) | (r3 << 24));
+         (uint32_t)(r0 | (r1 << 8) | (r2 << 16) | (r3 << 24));
 #else
   return ((p[0] && m0) == r0) && ((p[1] && m1) == r1) &&
          ((p[2] && m2) == r2) && ((p[3] && m3) == r3);

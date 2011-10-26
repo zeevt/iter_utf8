@@ -4,8 +4,6 @@
 #include <cstdlib>
 #include <cstdio>
 //#include <vector>
-//#include <algorithm>
-//#include "iter_utf8.hpp"
 #include "utf8_foreach_codepoint.hpp"
 
 using namespace std;
@@ -44,37 +42,31 @@ int main(int argc, char *argv[])
     perror("fread");
   if (unlikely(fclose(f)))
     perror("fclose");
-  {
-//    UTF8 utf8(str, nbytes);
-    uint32_t x2 = 0;
-    for (int i = 0; i < 100001; i++) {
-      uint32_t x = 0;
-      utf8_foreach_codepoint(str, nbytes, [&x](int32_t u) { x ^= u; });
-//      for (auto iter = utf8.begin(); iter != utf8.end(); ++iter)
-//        x ^= *iter;
-      x2 ^= x;
-    }
-    printf("Anti-Cheat: %08X\n", x2);
-/*
-    vector<int32_t> vec;
-    vec.reserve(nbytes);
-    for (int i = 0; i < 100000; i++) {
-      vec.clear();
-      for_each(utf8.begin(), utf8.end(), [&vec](int32_t i) { vec.push_back(i); });
-    }
-    printf("vec.size: %zu\n", vec.size());
-*/
-/*
-    for (auto i = utf8.begin(); i != utf8.end(); ++i) {
-      int code_point = *i;
-      if (code_point == '\n')
-        puts("");
-      else
-        printf("%06X ", code_point);
-    }
-    puts("");
-*/
+  uint32_t x2 = 0;
+  for (int i = 0; i < 100001; i++) {
+    uint32_t x = 0;
+    utf8_foreach_codepoint(str, nbytes, [&x](int32_t u) { x ^= u; });
+    x2 ^= x;
   }
+  printf("Anti-Cheat: %08X\n", x2);
+/*
+  vector<int32_t> vec;
+  vec.reserve(nbytes);
+  for (int i = 0; i < 100000; i++) {
+    vec.clear();
+    utf8_foreach_codepoint(str, nbytes, [&vec](int32_t u) { vec.push_back(u); });
+  }
+  printf("vec.size: %zu\n", vec.size());
+*/
+/*
+  utf8_foreach_codepoint(str, nbytes, [](int32_t code_point) {
+    if (code_point == '\n')
+      puts("");
+    else
+      printf("%06X ", code_point);
+  });
+  puts("");
+*/
   delete [] str;
   return 0;
 }

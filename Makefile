@@ -1,4 +1,4 @@
-CXXFLAGS := -std=c++0x -Wall -Wextra -Woverloaded-virtual -Wno-pmf-conversions -Wsign-promo -pedantic -fno-exceptions -fno-rtti -flto
+CXXFLAGS := -std=c++0x -Wall -Wextra -Woverloaded-virtual -Wsign-promo -pedantic -fno-exceptions -fno-rtti -flto
 LDFLAGS = -Wl,-O1 -Wl,--as-needed -fwhole-program -Wl,-flto
 ifeq (${DEBUG},yes)
 CXXFLAGS := $(CXXFLAGS) -O0 -ggdb -DDEBUG
