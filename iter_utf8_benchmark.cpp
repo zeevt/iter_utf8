@@ -1,10 +1,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstdlib>
 #include <cstdio>
-#include <vector>
-#include <algorithm>
-#include "iter_utf8.hpp"
+//#include <vector>
+//#include <algorithm>
+//#include "iter_utf8.hpp"
+#include "utf8_foreach_codepoint.hpp"
 
 using namespace std;
 
@@ -43,13 +45,13 @@ int main(int argc, char *argv[])
   if (unlikely(fclose(f)))
     perror("fclose");
   {
-    UTF8 utf8(str, nbytes);
+//    UTF8 utf8(str, nbytes);
     uint32_t x2 = 0;
     for (int i = 0; i < 100001; i++) {
       uint32_t x = 0;
-      for (auto iter = utf8.begin(); iter != utf8.end(); ++iter) {
-        x ^= *iter;
-      }
+      utf8_foreach_codepoint(str, nbytes, [&x](int32_t u) { x ^= u; });
+//      for (auto iter = utf8.begin(); iter != utf8.end(); ++iter)
+//        x ^= *iter;
       x2 ^= x;
     }
     printf("Anti-Cheat: %08X\n", x2);

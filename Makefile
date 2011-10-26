@@ -1,4 +1,4 @@
-CXXFLAGS := -std=c++0x -Wall -Wextra -pedantic -fno-exceptions -fno-rtti -flto
+CXXFLAGS := -std=c++0x -Wall -Wextra -Woverloaded-virtual -Wno-pmf-conversions -Wsign-promo -pedantic -fno-exceptions -fno-rtti -flto
 LDFLAGS = -Wl,-O1 -Wl,--as-needed -fwhole-program -Wl,-flto
 ifeq (${DEBUG},yes)
 CXXFLAGS := $(CXXFLAGS) -O0 -ggdb -DDEBUG
@@ -17,11 +17,11 @@ TESTFILE = /mnt/backup/home/user1/Downloads/UTF-8-demo.txt
 
 all: test
 
-iter_utf8.o: iter_utf8.cpp iter_utf8.hpp
+#iter_utf8.o: iter_utf8.cpp iter_utf8.hpp
 
-iter_utf8_test: iter_utf8_test.cpp iter_utf8.o
+iter_utf8_test: iter_utf8_test.cpp #iter_utf8.o
 
-iter_utf8_benchmark: iter_utf8_benchmark.cpp iter_utf8.o
+iter_utf8_benchmark: iter_utf8_benchmark.cpp #iter_utf8.o
 
 test: iter_utf8_test
 	./iter_utf8_test

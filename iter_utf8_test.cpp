@@ -1,9 +1,14 @@
 #include <cstdio>
 #include <cstring>
-#include "iter_utf8.hpp"
+//#include "iter_utf8.hpp"
+#include "utf8_foreach_codepoint.hpp"
 
 int main()
 {
+  const char *test = "日本語テスト彳";
+  utf8_foreach_codepoint(test, strlen(test), [](int32_t u) { printf("%06X ", u); });
+  puts("");
+/*
   {
     const char *test = "日本語テスト彳";
     UTF8 utf8(test, strlen(test));
@@ -29,5 +34,6 @@ int main()
     }
     printf("%d\n", n);
   }
+*/
   return 0;
 }
