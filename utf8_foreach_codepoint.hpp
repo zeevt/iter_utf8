@@ -36,7 +36,11 @@ inline bool mask_cmp_4b(
     result = c[0];
 
 template<class Callback>
+#if defined(__clang__)
+void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback& callback)
+#else
 void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback callback)
+#endif
 {
   const uint8_t *p = reinterpret_cast<const uint8_t *>(start);
   const uint8_t * const end = p + num_bytes;

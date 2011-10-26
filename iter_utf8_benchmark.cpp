@@ -19,6 +19,15 @@ handle_error(const char *err, const char *file_name, int lineno)
 }
 #define perror(s) handle_error(s, __FILE__, __LINE__)
 
+#if defined(__clang__)
+class C {
+public:
+  int32_t x;
+  C() : x(0) {}
+  void operator()(int32_t u) { x ^= u; }
+};
+#endif
+
 int main(int argc, char *argv[])
 {
   if (unlikely(argc < 2)) {
@@ -44,9 +53,15 @@ int main(int argc, char *argv[])
     perror("fclose");
   uint32_t x2 = 0;
   for (int i = 0; i < 100001; i++) {
+#if defined(__clang__)
+    C c;
+    utf8_foreach_codepoint(str, nbytes, c);
+    x2 ^= c.x;
+#else
     uint32_t x = 0;
     utf8_foreach_codepoint(str, nbytes, [&x](int32_t u) { x ^= u; });
     x2 ^= x;
+#endif
   }
   printf("Anti-Cheat: %08X\n", x2);
 /*
