@@ -8,6 +8,21 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
+inline bool mask_cmp_4b(
+  const uint8_t *p,
+  uint8_t m0, uint8_t m1, uint8_t m2, uint8_t m3,
+  uint8_t r0, uint8_t r1, uint8_t r2, uint8_t r3)
+{
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
+  const uint32_t *c = reinterpret_cast<const uint32_t *>(p);
+  return (*c & (m0 | (m1 << 8) | (m2 << 16) | (m3 << 24))) ==
+         (r0 | (r1 << 8) | (r2 << 16) | (r3 << 24));
+#else
+  return ((p[0] && m0) == r0) && ((p[1] && m1) == r1) &&
+         ((p[2] && m2) == r2) && ((p[3] && m3) == r3);
+#endif
+}
+
 #define PROLOGUE                \
     c = p;                      \
     avail = end - p;            \
@@ -21,11 +36,11 @@
     result = c[0];
 
 template<class Callback>
-void utf8_foreach_codepoint(const void *s, size_t n, Callback callback)
+void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback callback)
 {
-  const uint8_t *p = reinterpret_cast<const uint8_t *>(s);
-  const uint8_t *c = p;
-  const uint8_t * const end = p + n;
+  const uint8_t *p = reinterpret_cast<const uint8_t *>(start);
+  const uint8_t * const end = p + num_bytes;
+  const uint8_t *c;
   ptrdiff_t avail;
   uint8_t buf[4];
   int32_t result;
@@ -53,7 +68,7 @@ err:
       goto curr_len_1;
     } else if (likely(result < 224)) {
 curr_len_2:
-      if (likely((result >= 192) && ((c[1] & 0xC0) == 0x80))) {
+      if (likely((result >= 192) && mask_cmp_4b(c,0,0xC0,0,0,0,0x80,0,0))) {
         result = ((result & 0x1F) << 6) | (c[1] & 0x3F);
         callback(result);
         p += 2;
@@ -74,8 +89,9 @@ curr_len_2:
       goto curr_len_2;
     } else if (likely(result < 240)) {
 curr_len_3:
-      if (likely(((c[1] & 0xC0) == 0x80) && ((c[2] & 0xC0) == 0x80))) {
-        result = ((result & 0x1F) << 12) | ((c[1] & 0x3F) << 6) | (c[2] & 0x3F);
+      if (likely(mask_cmp_4b(c,0,0xC0,0xC0,0,0,0x80,0x80,0))) {
+        result = ((result & 0x0F) << 12) | ((c[1] & 0x3F) << 6) |
+                 (c[2] & 0x3F);
         callback(result);
         p += 3;
         continue;
@@ -95,8 +111,9 @@ curr_len_3:
       goto curr_len_3;
     } else if (likely(result < 248)) {
 curr_len_4:
-      if (likely(((c[1] & 0xC0) == 0x80) && ((c[2] & 0xC0) == 0x80) && ((c[3] & 0xC0) == 0x80))) {
-        result = ((result & 0x1F) << 18) | ((c[1] & 0x3F) << 12) | ((c[2] & 0x3F) << 6) | (c[3] & 0x3F);
+      if (likely(mask_cmp_4b(c,0,0xC0,0xC0,0xC0,0,0x80,0x80,0x80))) {
+        result = ((result & 0x07) << 18) | ((c[1] & 0x3F) << 12) |
+                 ((c[2] & 0x3F) << 6) | (c[3] & 0x3F);
         callback(result);
         p += 4;
         continue;
