@@ -24,16 +24,14 @@ inline bool mask_cmp_4b(
 }
 
 /* TODO:
- * Only one full if-else-if chain. Each seq loop only has the checks that the seq length is unchanged: if it changed, got to full check.
- * Instead of end, store end_minus_3 and compare with that.
  * Extract and shift bits using whole int operations.
  * Single unaligned memory read: *(uint32_t*)c into eax, then tag byte is al. Operate on data in registers.
  */
 
 #define PROLOGUE                \
     c = p;                      \
-    avail = end - p;            \
-    if (unlikely(avail <= 3)) { \
+    if (unlikely(p >= end_minus_3)) {   \
+      avail = end_minus_3 + 3 - p;      \
       if (unlikely(avail <= 0)) \
         goto done;              \
       memset(buf, 0, 4);        \
@@ -50,7 +48,7 @@ void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback callba
 #endif
 {
   const uint8_t *p = reinterpret_cast<const uint8_t *>(start);
-  const uint8_t * const end = p + num_bytes;
+  const uint8_t * const end_minus_3 = p + num_bytes - 3;
   const uint8_t *c;
   ptrdiff_t avail;
   uint8_t buf[4];
