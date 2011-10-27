@@ -1,5 +1,5 @@
 CXXFLAGS := -std=c++0x -Wall -Wextra -Woverloaded-virtual -Wsign-promo -pedantic -fno-exceptions -fno-rtti
-LDFLAGS := -Wl,-O1 -Wl,--as-needed -fwhole-program
+LDFLAGS := -Wl,-O1 -Wl,--as-needed
 ifeq (${DEBUG},yes)
 CXXFLAGS := $(CXXFLAGS) -O0 -ggdb -DDEBUG
 else
@@ -13,7 +13,10 @@ CXXFLAGS := $(CXXFLAGS) -fprofile-use
 endif
 ifeq ($(CXX),g++)
 CXXFLAGS := $(CXXFLAGS) -flto
-LDFLAGS := $(LDFLAGS) -Wl,-flto
+LDFLAGS := $(LDFLAGS) -Wl,-flto -fwhole-program
+endif
+ifeq ($(CXX),icc)
+CXXFLAGS := $(CXXFLAGS) -D__GXX_EXPERIMENTAL_CXX0X__=1
 endif
 
 PERF = /mnt/backup/home/backup/linux-2.6/tools/perf/perf
