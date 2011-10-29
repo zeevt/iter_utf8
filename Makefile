@@ -8,8 +8,8 @@ CXXFLAGS := $(CXXFLAGS) -O3 -g -DNDEBUG
 endif
 
 ifeq ($(CXX),g++)
-	CXXFLAGS := $(CXXFLAGS) -Wsign-promo -pedantic -flto
-	LDFLAGS := $(LDFLAGS) -Wl,-flto -fwhole-program
+	CXXFLAGS := $(CXXFLAGS) -Wsign-promo -pedantic -mtune=native
+	LDFLAGS := $(LDFLAGS) -fwhole-program
 	ifeq (${PGO_GEN},yes)
 		CXXFLAGS := $(CXXFLAGS) -fprofile-generate
 	else ifeq (${PGO_USE},yes)
