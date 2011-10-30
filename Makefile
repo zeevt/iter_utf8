@@ -29,34 +29,34 @@ endif
 PERF = /mnt/backup/home/backup/linux-2.6/tools/perf/perf
 TESTFILE = /mnt/backup/home/user1/Downloads/UTF-8-demo.txt
 
-all: test
+all:
 
 iter_utf8_test.cpp: utf8_foreach_codepoint.hpp
 iter_utf8_benchmark.cpp: utf8_foreach_codepoint.hpp
 iter_utf8_test: iter_utf8_test.cpp
 iter_utf8_benchmark: iter_utf8_benchmark.cpp
 
-test: iter_utf8_test
-	./iter_utf8_test
+run: ${target}
+	./${target} $(TESTFILE)
 
-pgo: iter_utf8_benchmark.cpp
+benchmark: ${target}
+	$(PERF) stat -e cycles -e instructions -e branches -e branch-misses ./${target} $(TESTFILE)
+
+pgo:
 	$(MAKE) clean
-	$(MAKE) PGO_GEN=yes benchmark
+	$(MAKE) PGO_GEN=yes run
 	$(MAKE) clean
 	$(MAKE) PGO_USE=yes benchmark
 
-benchmark: iter_utf8_benchmark .PHONY
-	$(PERF) stat -e cycles -e instructions -e branches -e branch-misses ./iter_utf8_benchmark $(TESTFILE)
+%_perf: ${target}
+	$(PERF) record --output=$*_perf ./$* $(TESTFILE)
 
-perf.data: iter_utf8_benchmark
-	$(PERF) record ./iter_utf8_benchmark $(TESTFILE)
-
-profile: perf.data
-	$(PERF) report
-	$(PERF) annotate -l
+profile: ${target}_perf
+	$(PERF) report --input=$<
+	$(PERF) annotate -l --input=$<
 
 clean: .PHONY
-	rm -f iter_utf8_test iter_utf8_benchmark perf.data perf.data.old
+	rm -f iter_utf8_test iter_utf8_benchmark *_perf *_perf.old
 
 distclean: .PHONY clean
 	rm -f pgopti.dpi.lock pgopti.dpi *.dyn *.gcda
