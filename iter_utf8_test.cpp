@@ -61,9 +61,12 @@ int main()
     char *p = test;
     for (int i = 0; i < (nbytes >> 2); i++)
       p += put_utf8(min_val[seq_len] + i, p, test + nbytes);
-    int n = 0;
-    utf8_foreach_codepoint(test, p - test, [seq_len,&n](int32_t u) { if (min_val[seq_len] + n == u) ++n; });
-    printf("%d\n", n);
+    for (int benchmark = 0; benchmark < 100000; benchmark++) {
+      int n = 0;
+      utf8_foreach_codepoint(test, p - test, [seq_len,&n](int32_t u) { if (min_val[seq_len] + n == u) ++n; });
+      if (unlikely(n != (nbytes >> 2)))
+        printf("%d\n", n);
+    }
   }
   delete [] test;
   return 0;

@@ -23,104 +23,61 @@ inline bool mask_cmp_4b(
 #endif
 }
 
-/* TODO:
- * Extract and shift bits using whole int operations.
- * Single unaligned memory read: *(uint32_t*)c into eax, then tag byte is al. Operate on data in registers.
- */
-
-#define PROLOGUE                \
-    c = p;                      \
-    if (unlikely(p >= end_minus_3)) {   \
-      avail = end_minus_3 + 3 - p;      \
-      if (unlikely(avail <= 0)) \
-        goto done;              \
-      memset(buf, 0, 4);        \
-      memcpy(buf, p, avail);    \
-      c = buf;                  \
-    }                           \
-    result = c[0];
-
 template<class Callback>
-#if defined(__clang__)
-void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback& callback)
-#else
-void utf8_foreach_codepoint(const void *start, size_t num_bytes, Callback callback)
-#endif
+void utf8_foreach_codepoint(
+  const void *start, size_t num_bytes, Callback callback)
 {
-  const uint8_t *p = reinterpret_cast<const uint8_t *>(start);
-  const uint8_t * const end_minus_3 = p + num_bytes - 3;
-  const uint8_t *c;
-  ptrdiff_t avail;
-  uint8_t buf[4];
+  const uint8_t *s = reinterpret_cast<const uint8_t *>(start),
+                *end_minus_3 = s + num_bytes - 3, *p;
   int32_t result;
+  uint8_t buf[4];
   for (;;) {
-    PROLOGUE
-full_test_1:
-    if (result < 128)
-      goto curr_len_1;
-full_test_2:
-    if (result < 224)
-      goto curr_len_2;
-full_test_3:
-    if (result < 240)
-      goto curr_len_3;
-full_test_4:
-    if (result < 248)
-      goto curr_len_4;
+    p = s;
+    if (unlikely(s >= end_minus_3)) {
+      ptrdiff_t avail = end_minus_3 + 3 - s;
+      if (unlikely(avail <= 0))
+        break;
+      memset(buf, 0, 4);
+      memcpy(buf, s, avail);
+      p = buf;
+    }
+    if (p[0] < 128) {
+      result = p[0];
+      s += 1;
+    } else if (p[0] < 224) {
+      if (unlikely(p[0] < 192))
+        goto err;
+      if (unlikely(!mask_cmp_4b(p,0,0xC0,0,0,0,0x80,0,0)))
+        goto err;
+      result = ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
+      s += 2;
+    } else if (p[0] < 240) {
+      if (unlikely(!mask_cmp_4b(p,0,0xC0,0xC0,0,0,0x80,0x80,0)))
+        goto err;
+      result = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+      s += 3;
+    } else if (p[0] < 248) {
+      if (unlikely(!mask_cmp_4b(p,0,0xC0,0xC0,0xC0,0,0x80,0x80,0x80)))
+        goto err;
+      result = ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) |
+               ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
+      s += 4;
+    } else goto err;
+ret:
+    callback(result);
+    continue;
 err:
-    callback(INT32_MIN);
-    p += 1;
+    s += 1;
+    result = INT32_MIN;
+    goto ret;
   }
-  for (;;) {
-    PROLOGUE
-    if (unlikely(result >= 128))
-      goto full_test_2;
-curr_len_1:
-    callback(result);
-    p += 1;
-  }
-  for (;;) {
-    PROLOGUE
-    if (unlikely(result < 128))
-      goto curr_len_1;
-    if (unlikely(result >= 224))
-      goto full_test_3;
-curr_len_2:
-    if (unlikely((result < 192) || !mask_cmp_4b(c,0,0xC0,0,0,0,0x80,0,0)))
-      goto err;
-    result = ((result & 0x1F) << 6) | (c[1] & 0x3F);
-    callback(result);
-    p += 2;
-  }
-  for (;;) {
-    PROLOGUE
-    if (unlikely(result < 224))
-      goto full_test_1;
-    if (unlikely(result >= 240))
-      goto full_test_4;
-curr_len_3:
-    if (unlikely(!mask_cmp_4b(c,0,0xC0,0xC0,0,0,0x80,0x80,0)))
-      goto err;
-    result = ((result & 0x0F) << 12) | ((c[1] & 0x3F) << 6) |
-              (c[2] & 0x3F);
-    callback(result);
-    p += 3;
-  }
-  for (;;) {
-    PROLOGUE
-    if (unlikely(result < 240))
-      goto full_test_1;
-    if (unlikely(result >= 248))
-      goto err;
-curr_len_4:
-    if (unlikely(!mask_cmp_4b(c,0,0xC0,0xC0,0xC0,0,0x80,0x80,0x80)))
-      goto err;
-    result = ((result & 0x07) << 18) | ((c[1] & 0x3F) << 12) |
-              ((c[2] & 0x3F) << 6) | (c[3] & 0x3F);
-    callback(result);
-    p += 4;
-  }
-done:;
+}
+
+extern "C" void
+utf8_foreach_codepoint_c(
+  const void *start, size_t num_bytes, void (*callback)(void *,int32_t), void *opaque)
+{
+  utf8_foreach_codepoint(start, num_bytes, [callback,opaque](int32_t u){ callback(opaque, u); });
 }
 
 #endif /* !defined(UTF8_FOREACH_CODEPOINT_) */
