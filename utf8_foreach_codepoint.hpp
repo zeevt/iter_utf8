@@ -23,54 +23,105 @@ static inline bool mask_cmp_4b(
 #endif
 }
 
+#define PROLOGUE                                \
+    c = p;                                      \
+    if (unlikely(p >= end_minus_3)) {           \
+      ptrdiff_t avail = end_minus_3 + 3 - p;    \
+      if (unlikely(avail <= 0))                 \
+        goto done;                              \
+      memset(buf, 0, 4);                        \
+      memcpy(buf, p, avail);                    \
+      c = buf;                                  \
+    }
+
 template<class Callback>
 void utf8_foreach_codepoint(
   const void *start, size_t num_bytes, Callback callback)
 {
-  const uint8_t *s = reinterpret_cast<const uint8_t *>(start),
-                *end_minus_3 = s + num_bytes - 3, *p;
-  int32_t result;
+  const uint8_t *p = reinterpret_cast<const uint8_t *>(start),
+                *end_minus_3 = p + num_bytes - 3, *c;
   uint8_t buf[4];
   for (;;) {
-    p = s;
-    if (unlikely(s >= end_minus_3)) {
-      ptrdiff_t avail = end_minus_3 + 3 - s;
-      if (unlikely(avail <= 0))
-        break;
-      memset(buf, 0, 4);
-      memcpy(buf, s, avail);
-      p = buf;
+    PROLOGUE
+    if (likely(c[0] < 128)) {
+curr_len_1:
+      int32_t result = c[0];
+      p += 1;
+      callback(result);
+      continue;
+    } else if (c[0] < 224) {
+      goto curr_len_2;
+    } else if (c[0] < 240) {
+      goto curr_len_3;
+    } else if (c[0] < 248) {
+      goto curr_len_4;
     }
-    if (p[0] < 128) {
-      result = p[0];
-      s += 1;
-    } else if (p[0] < 224) {
-      if (unlikely(p[0] < 192))
-        goto err;
-      if (unlikely(!mask_cmp_4b(p,0,0xC0,0,0,0,0x80,0,0)))
-        goto err;
-      result = ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
-      s += 2;
-    } else if (p[0] < 240) {
-      if (unlikely(!mask_cmp_4b(p,0,0xC0,0xC0,0,0,0x80,0x80,0)))
-        goto err;
-      result = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
-      s += 3;
-    } else if (p[0] < 248) {
-      if (unlikely(!mask_cmp_4b(p,0,0xC0,0xC0,0xC0,0,0x80,0x80,0x80)))
-        goto err;
-      result = ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) |
-               ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
-      s += 4;
-    } else goto err;
-ret:
-    callback(result);
-    continue;
 err:
-    s += 1;
-    result = INT32_MIN;
-    goto ret;
+    p += 1;
+    callback(INT32_MIN);
   }
+  for (;;) {
+    PROLOGUE
+    if (unlikely(c[0] < 128)) {
+      goto curr_len_1;
+    } else if (likely(c[0] < 224)) {
+curr_len_2:
+      if (likely((c[0] >= 192) && mask_cmp_4b(c,0,0xC0,0,0,0,0x80,0,0))) {
+        int32_t result = ((c[0] & 0x1F) << 6) | (c[1] & 0x3F);
+        p += 2;
+        callback(result);
+        continue;
+      }
+    } else if (c[0] < 240) {
+      goto curr_len_3;
+    } else if (c[0] < 248) {
+      goto curr_len_4;
+    }
+    goto err;
+  }
+  for (;;) {
+    PROLOGUE
+    if (unlikely(c[0] < 224)) {
+      if (c[0] < 128)
+        goto curr_len_1;
+      else 
+        goto curr_len_2;
+    } else if (likely(c[0] < 240)) {
+curr_len_3:
+      if (likely(mask_cmp_4b(c,0,0xC0,0xC0,0,0,0x80,0x80,0))) {
+        int32_t result = ((c[0] & 0x0F) << 12) | ((c[1] & 0x3F) << 6) |
+                          (c[2] & 0x3F);
+        p += 3;
+        callback(result);
+        continue;
+      }
+    } else if (c[0] < 248) {
+      goto curr_len_4;
+    }
+    goto err;
+  }
+  for (;;) {
+    PROLOGUE
+    if (unlikely(c[0] < 240)) {
+      if (c[0] < 128)
+        goto curr_len_1;
+      if (c[0] < 224)
+        goto curr_len_2;
+      else
+        goto curr_len_3;
+    } else if (likely(c[0] < 248)) {
+curr_len_4:
+      if (likely(mask_cmp_4b(c,0,0xC0,0xC0,0xC0,0,0x80,0x80,0x80))) {
+        int32_t result = ((c[0] & 0x07) << 18) | ((c[1] & 0x3F) << 12) |
+                         ((c[2] & 0x3F) << 6)  |  (c[3] & 0x3F);
+        p += 4;
+        callback(result);
+        continue;
+      }
+    }
+    goto err;
+  }
+done:;
 }
 
 extern "C" void
