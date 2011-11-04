@@ -8,7 +8,7 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
-inline bool mask_cmp_4b(
+static inline bool mask_cmp_4b(
   const uint8_t *p,
   uint8_t m0, uint8_t m1, uint8_t m2, uint8_t m3,
   uint8_t r0, uint8_t r1, uint8_t r2, uint8_t r3)

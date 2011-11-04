@@ -30,11 +30,17 @@ PERF = /mnt/backup/home/backup/linux-2.6/tools/perf/perf
 TESTFILE = /mnt/backup/home/user1/Downloads/UTF-8-demo.txt
 
 all:
+	rm -f log.txt
 	$(MAKE) distclean
 	$(MAKE) target=iter_utf8_test benchmark >> log.txt 2>&1
 	size -A iter_utf8_test | grep '.text' >> log.txt
 	$(MAKE) target=iter_utf8_test pgo >> log.txt 2>&1
 	size -A iter_utf8_test | grep '.text' >> log.txt
+	$(MAKE) distclean
+	$(MAKE) target=iter_utf8_benchmark benchmark >> log.txt 2>&1
+	size -A iter_utf8_benchmark | grep '.text' >> log.txt
+	$(MAKE) target=iter_utf8_benchmark pgo >> log.txt 2>&1
+	size -A iter_utf8_benchmark | grep '.text' >> log.txt
 	less log.txt
 
 iter_utf8_test: iter_utf8_test.cpp utf8_foreach_codepoint.hpp
