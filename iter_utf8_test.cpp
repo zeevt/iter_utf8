@@ -1,5 +1,9 @@
 #include <cstdio>
-#include "utf8_foreach_codepoint.hpp"
+#include <cstring>
+#include "iter_utf8.hpp"
+
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
 
 template<bool safe = true>
 static int put_utf8(uint32_t u, void *start, const void *one_past_end)
@@ -43,17 +47,25 @@ err:
 
 int main()
 {
+  /*
   {
     const char *test = "日本語テスト彳";
-    utf8_foreach_codepoint(test, strlen(test), [](int32_t u) { printf("%06X ", u); });
+    UTF8 utf8(test, strlen(test));
+    for (auto iter = utf8.begin(); iter != utf8.end(); ++iter)
+      printf("%06X ", *iter);
     puts("");
   }
   {
     const char *test = "abcd\xE0";
     int n = 0;
-    utf8_foreach_codepoint(test, strlen(test), [&n](int32_t u) { printf("%06X ", u); ++n; });
+    UTF8 utf8(test, strlen(test));
+    for (auto iter = utf8.begin(); iter != utf8.end(); ++iter) {
+      printf("%06X ", *iter);
+      ++n;
+    }
     printf("%d\n", n);
   }
+  */
   static const uint32_t min_val[] = {0, 0x80, 0x800, 0x10000};
   const int nbytes = 4000;
   char *test = new char[nbytes];
@@ -61,9 +73,12 @@ int main()
     char *p = test;
     for (int i = 0; i < (nbytes >> 2); i++)
       p += put_utf8(min_val[seq_len] + i, p, test + nbytes);
+    UTF8 utf8(test, p - test);
     for (int benchmark = 0; benchmark < 100000; benchmark++) {
       int n = 0;
-      utf8_foreach_codepoint(test, p - test, [seq_len,&n](int32_t u) { if (min_val[seq_len] + n == u) ++n; });
+      for (auto iter = utf8.begin(); iter != utf8.end(); ++iter)
+        if (min_val[seq_len] + n == *iter)
+          ++n;
       if (unlikely(n != (nbytes >> 2)))
         printf("%d\n", n);
     }

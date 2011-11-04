@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstdio>
 //#include <vector>
-#include "utf8_foreach_codepoint.hpp"
+#include "iter_utf8.hpp"
 
 using namespace std;
 
@@ -59,7 +59,8 @@ int main(int argc, char *argv[])
     x2 ^= c.x;
 #else
     uint32_t x = 0;
-    utf8_foreach_codepoint(str, nbytes, [&x](int32_t u) { x ^= u; });
+    UTF8 utf8(str, nbytes);
+    for (auto iter = utf8.begin(); iter != utf8.end(); ++iter) x ^= *iter;
     x2 ^= x;
 #endif
   }

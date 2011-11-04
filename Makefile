@@ -8,7 +8,7 @@ CXXFLAGS := $(CXXFLAGS) -O2 -g -DNDEBUG
 endif
 
 ifeq ($(CXX),g++)
-	CXXFLAGS := $(CXXFLAGS) -Wsign-promo -pedantic -mtune=native
+	CXXFLAGS := $(CXXFLAGS) -Wsign-promo -pedantic -mtune=native -flto
 	LDFLAGS := $(LDFLAGS) -fwhole-program
 	ifeq (${PGO_GEN},yes)
 		CXXFLAGS := $(CXXFLAGS) -fprofile-generate
@@ -30,18 +30,33 @@ PERF = /mnt/backup/home/backup/linux-2.6/tools/perf/perf
 TESTFILE = /mnt/backup/home/user1/Downloads/UTF-8-demo.txt
 
 all:
+	rm -f log.txt
 	$(MAKE) distclean
 	$(MAKE) target=iter_utf8_test benchmark >> log.txt 2>&1
 	size -A iter_utf8_test | grep '.text' >> log.txt
 	$(MAKE) target=iter_utf8_test pgo >> log.txt 2>&1
 	size -A iter_utf8_test | grep '.text' >> log.txt
+	$(MAKE) distclean
+	$(MAKE) target=iter_utf8_benchmark benchmark >> log.txt 2>&1
+	size -A iter_utf8_benchmark | grep '.text' >> log.txt
+	$(MAKE) target=iter_utf8_benchmark pgo >> log.txt 2>&1
+	size -A iter_utf8_benchmark | grep '.text' >> log.txt
 	less log.txt
 
-iter_utf8_test: iter_utf8_test.cpp utf8_foreach_codepoint.hpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+iter_utf8.o: iter_utf8.cpp iter_utf8.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-iter_utf8_benchmark: iter_utf8_benchmark.cpp utf8_foreach_codepoint.hpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+iter_utf8_test.o: iter_utf8_test.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+iter_utf8_benchmark.o: iter_utf8_benchmark.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+iter_utf8_test: iter_utf8_test.o iter_utf8.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^
+
+iter_utf8_benchmark: iter_utf8_benchmark.o iter_utf8.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^
 
 run: ${target}
 	./${target} $(TESTFILE)
@@ -63,7 +78,7 @@ profile: ${target}_perf
 	$(PERF) annotate -l --input=$<
 
 clean: .PHONY
-	rm -f iter_utf8_test iter_utf8_benchmark *_perf *_perf.old
+	rm -f iter_utf8_test iter_utf8_benchmark *.o *_perf *_perf.old
 
 distclean: .PHONY clean
 	rm -f pgopti.dpi.lock pgopti.dpi *.dyn *.gcda
