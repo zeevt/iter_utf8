@@ -1,30 +1,36 @@
+CFLAGS := -std=gnu99 -Wall -Wextra
 CXXFLAGS := -std=c++0x -Wall -Wextra -Woverloaded-virtual -fno-exceptions -fno-rtti
 LDFLAGS := -Wl,-O1 -Wl,--as-needed
 
 ifeq (${DEBUG},yes)
-CXXFLAGS := $(CXXFLAGS) -O0 -ggdb -DDEBUG
+OPTFLAGS := -O0 -ggdb -DDEBUG
 else
-CXXFLAGS := $(CXXFLAGS) -O2 -g -DNDEBUG
+OPTFLAGS := -O2 -g -DNDEBUG
 endif
 
 ifeq ($(CXX),g++)
-	CXXFLAGS := $(CXXFLAGS) -Wsign-promo -pedantic -mtune=native
+	OPTFLAGS := $(OPTFLAGS) -pedantic -mtune=native
+	CXXFLAGS := $(CXXFLAGS) -Wsign-promo
 	LDFLAGS := $(LDFLAGS) -fwhole-program
 	ifeq (${PGO_GEN},yes)
-		CXXFLAGS := $(CXXFLAGS) -fprofile-generate
+		OPTFLAGS := $(OPTFLAGS) -fprofile-generate
 	else ifeq (${PGO_USE},yes)
-		CXXFLAGS := $(CXXFLAGS) -fprofile-use
+		OPTFLAGS := $(OPTFLAGS) -fprofile-use
 	endif
 else ifeq ($(CXX),icc)
-	CXXFLAGS := $(CXXFLAGS) -D__GXX_EXPERIMENTAL_CXX0X__=1 -xHost
+	OPTFLAGS := $(OPTFLAGS) -xHost
+	CXXFLAGS := $(CXXFLAGS) -D__GXX_EXPERIMENTAL_CXX0X__=1
 	ifeq (${PGO_GEN},yes)
-		CXXFLAGS := $(CXXFLAGS) -prof-gen
+		OPTFLAGS := $(OPTFLAGS) -prof-gen
 	else ifeq (${PGO_USE},yes)
-		CXXFLAGS := $(CXXFLAGS) -prof-use -ipo
+		OPTFLAGS := $(OPTFLAGS) -prof-use -ipo
 	else 
-		CXXFLAGS := $(CXXFLAGS) -ipo
+		OPTFLAGS := $(OPTFLAGS) -ipo
 	endif
 endif
+
+CFLAGS := $(CFLAGS) $(OPTFLAGS)
+CXXFLAGS := $(CXXFLAGS) $(OPTFLAGS)
 
 PERF = /mnt/backup/home/backup/linux-2.6/tools/perf/perf
 TESTFILE = /mnt/backup/home/user1/Downloads/UTF-8-demo.txt
@@ -43,11 +49,11 @@ all:
 	size -A iter_utf8_benchmark | grep '.text' >> log.txt
 	less log.txt
 
-iter_utf8_test: iter_utf8_test.cpp utf8_foreach_codepoint.hpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+iter_utf8_test: iter_utf8_test.c utf8_get.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-iter_utf8_benchmark: iter_utf8_benchmark.cpp utf8_foreach_codepoint.hpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+iter_utf8_benchmark: iter_utf8_benchmark.c utf8_get.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 run: ${target}
 	./${target} $(TESTFILE)
